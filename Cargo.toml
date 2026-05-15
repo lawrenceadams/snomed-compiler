@@ -1,0 +1,16 @@
+[package]
+name = "snomed_compiler"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "snomed-compile"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+bytemuck = { version = "1", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
+csv = "1"
+crc32fast = "1"
+memmap2 = "0.9"
