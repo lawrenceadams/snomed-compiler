@@ -1,7 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
 use axum::{Router, routing::get};
-use env_logger::Env;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 

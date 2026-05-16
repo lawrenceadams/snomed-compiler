@@ -1,6 +1,8 @@
 mod compile;
 mod format;
 mod query;
+
+#[cfg(feature = "serve")]
 mod serve;
 
 use std::path::PathBuf;
@@ -52,6 +54,7 @@ enum Command {
     },
 
     /// Launch axum webserver that can be used to serve results
+    #[cfg(feature = "serve")]
     Serve {
         /// Path to compiled artifact
         #[arg(long)]
@@ -106,6 +109,7 @@ fn main() -> Result<()> {
             })?;
         }
 
+        #[cfg(feature = "serve")]
         Command::Serve { db } => {
             let rt = tokio::runtime::Runtime::new()?;
 

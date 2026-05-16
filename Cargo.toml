@@ -7,6 +7,11 @@ edition = "2024"
 name = "snomed-compile"
 path = "src/main.rs"
 
+[features]
+default = []
+serve = ["tokio", "axum", "tower-http", "serde_json"]  # run offline/CI only
+
+
 [dependencies]
 anyhow = "1"
 bytemuck = { version = "1", features = ["derive"] }
@@ -14,10 +19,10 @@ clap = { version = "4", features = ["derive"] }
 csv = "1"
 crc32fast = "1"
 memmap2 = "0.9"
-axum = "0.8.9"
-tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "tracing"] }
-serde_json = "1.0.149"
+axum = {version="0.8.9", optional=true}
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "tracing"] , optional=true}
+serde_json = {version = "1.0.149",optional=true}
 tracing = { version = "0.1.44", features = ["async-await", "log"] }
 env_logger = "0.11.6"
-tower-http = { version = "0.6.8", features = ["trace"] }
+tower-http = { version = "0.6.8", features = ["trace"] ,optional=true}
 tracing-subscriber = "0.3.23"
