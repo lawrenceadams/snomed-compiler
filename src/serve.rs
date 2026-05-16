@@ -4,7 +4,7 @@ use axum::{Router, routing::get};
 use tower_http::trace::TraceLayer;
 use tracing::info;
 
-use crate::query::SnomedDb;
+use snomed_compiler::query::SnomedDb;
 mod handlers;
 
 #[derive(Clone)]

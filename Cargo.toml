@@ -3,6 +3,10 @@ name = "snomed_compiler"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "snomed_compiler"
+path = "src/lib.rs"
+
 [[bin]]
 name = "snomed-compile"
 path = "src/main.rs"

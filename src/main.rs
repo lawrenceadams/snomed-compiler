@@ -1,6 +1,4 @@
-mod compile;
-mod format;
-mod query;
+use snomed_compiler::{compile, format, query};
 
 #[cfg(feature = "serve")]
 mod serve;
