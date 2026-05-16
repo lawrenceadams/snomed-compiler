@@ -1,6 +1,7 @@
 mod compile;
 mod format;
 mod query;
+mod serve;
 
 use std::path::PathBuf;
 
@@ -10,7 +11,10 @@ use clap::{Parser, Subcommand};
 // ── CLI definition ────────────────────────────────────────────────────────────
 
 #[derive(Parser)]
-#[command(name = "snomed-compile", about = "SNOMED CT RF2 compiler and query tool")]
+#[command(
+    name = "snomed-compile",
+    about = "SNOMED CT RF2 compiler and query tool"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -46,6 +50,13 @@ enum Command {
         #[command(subcommand)]
         op: QueryOp,
     },
+
+    /// Launch axum webserver that can be used to serve results
+    Serve {
+        /// Path to compiled artifact
+        #[arg(long)]
+        db: PathBuf,
+    },
 }
 
 #[derive(Subcommand)]
@@ -76,11 +87,16 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Compile { rf2_dir, output, date, edition } => {
+        Command::Compile {
+            rf2_dir,
+            output,
+            date,
+            edition,
+        } => {
             let edition_code = match edition.as_str() {
                 "international" => format::EDITION_INTERNATIONAL,
-                "uk"            => format::EDITION_UK,
-                _               => format::EDITION_UNKNOWN,
+                "uk" => format::EDITION_UK,
+                _ => format::EDITION_UNKNOWN,
             };
             compile::compile(compile::CompileOptions {
                 rf2_dir,
@@ -88,6 +104,12 @@ fn main() -> Result<()> {
                 release_date: date,
                 edition: edition_code,
             })?;
+        }
+
+        Command::Serve { db } => {
+            let rt = tokio::runtime::Runtime::new()?;
+
+            rt.block_on(serve::run_server(db));
         }
 
         Command::Query { db, op } => {

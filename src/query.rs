@@ -33,8 +33,8 @@ pub struct ConceptInfo {
 
 impl SnomedDb {
     pub fn open(path: &Path) -> Result<Self> {
-        let file = std::fs::File::open(path)
-            .with_context(|| format!("Opening {}", path.display()))?;
+        let file =
+            std::fs::File::open(path).with_context(|| format!("Opening {}", path.display()))?;
         // SAFETY: we treat the mmap as read-only and the file is not modified
         // while the Mmap is live.
         let mmap = unsafe { Mmap::map(&file) }.context("Memory-mapping artifact")?;
@@ -49,8 +49,11 @@ impl SnomedDb {
             bail!("Invalid magic bytes — not a snomed-compile artifact");
         }
         if header.version >> 16 != VERSION >> 16 {
-            bail!("Incompatible artifact version {:#010x} (expected major {:04x})",
-                header.version, VERSION >> 16);
+            bail!(
+                "Incompatible artifact version {:#010x} (expected major {:04x})",
+                header.version,
+                VERSION >> 16
+            );
         }
 
         let concept_count = header.concept_count as usize;
@@ -69,12 +72,15 @@ impl SnomedDb {
                 bail!("Section table extends beyond file at entry {}", i);
             }
             let entry: &SectionEntry = bytemuck::from_bytes(&mmap[start..end]);
-            let range = SecRange { offset: entry.offset as usize, length: entry.length as usize };
+            let range = SecRange {
+                offset: entry.offset as usize,
+                length: entry.length as usize,
+            };
             match entry.section_id {
                 SECTION_CONCEPT_TABLE => sec_concept_table = Some(range),
-                SECTION_SCTID_INDEX   => sec_sctid_index   = Some(range),
-                SECTION_PARENTS_CSR   => sec_parents_csr   = Some(range),
-                SECTION_CHILDREN_CSR  => sec_children_csr  = Some(range),
+                SECTION_SCTID_INDEX => sec_sctid_index = Some(range),
+                SECTION_PARENTS_CSR => sec_parents_csr = Some(range),
+                SECTION_CHILDREN_CSR => sec_children_csr = Some(range),
                 other => eprintln!("Unknown section id {} — skipping", other),
             }
         }
@@ -83,9 +89,9 @@ impl SnomedDb {
             mmap,
             concept_count,
             sec_concept_table: sec_concept_table.context("Missing concept table section")?,
-            sec_sctid_index:   sec_sctid_index  .context("Missing SCTID index section")?,
-            sec_parents_csr:   sec_parents_csr  .context("Missing parents CSR section")?,
-            sec_children_csr:  sec_children_csr .context("Missing children CSR section")?,
+            sec_sctid_index: sec_sctid_index.context("Missing SCTID index section")?,
+            sec_parents_csr: sec_parents_csr.context("Missing parents CSR section")?,
+            sec_children_csr: sec_children_csr.context("Missing children CSR section")?,
         })
     }
 
@@ -103,12 +109,18 @@ impl SnomedDb {
 
     fn parents_csr(&self) -> Csr<'_> {
         let r = self.sec_parents_csr;
-        Csr::new(&self.mmap[r.offset..r.offset + r.length], self.concept_count)
+        Csr::new(
+            &self.mmap[r.offset..r.offset + r.length],
+            self.concept_count,
+        )
     }
 
     fn children_csr(&self) -> Csr<'_> {
         let r = self.sec_children_csr;
-        Csr::new(&self.mmap[r.offset..r.offset + r.length], self.concept_count)
+        Csr::new(
+            &self.mmap[r.offset..r.offset + r.length],
+            self.concept_count,
+        )
     }
 
     // ── SCTID ↔ internal ID ────────────────────────────────────────────────
@@ -140,35 +152,53 @@ impl SnomedDb {
     }
 
     pub fn parents(&self, sctid: u64) -> Vec<u64> {
-        let Some(id) = self.sctid_to_id(sctid) else { return vec![]; };
+        let Some(id) = self.sctid_to_id(sctid) else {
+            return vec![];
+        };
         let csr = self.parents_csr();
-        csr.neighbors(id).iter().map(|&p| self.id_to_sctid(p as usize)).collect()
+        csr.neighbors(id)
+            .iter()
+            .map(|&p| self.id_to_sctid(p as usize))
+            .collect()
     }
 
     pub fn children(&self, sctid: u64) -> Vec<u64> {
-        let Some(id) = self.sctid_to_id(sctid) else { return vec![]; };
+        let Some(id) = self.sctid_to_id(sctid) else {
+            return vec![];
+        };
         let csr = self.children_csr();
-        csr.neighbors(id).iter().map(|&c| self.id_to_sctid(c as usize)).collect()
+        csr.neighbors(id)
+            .iter()
+            .map(|&c| self.id_to_sctid(c as usize))
+            .collect()
     }
 
     /// All ancestors via BFS up the parent edges (does not include `sctid`).
     pub fn ancestors(&self, sctid: u64) -> Vec<u64> {
-        let Some(start) = self.sctid_to_id(sctid) else { return vec![]; };
+        let Some(start) = self.sctid_to_id(sctid) else {
+            return vec![];
+        };
         let csr = self.parents_csr();
         self.bfs_collect(start, &csr)
     }
 
     /// All descendants via BFS down the children edges (does not include `sctid`).
     pub fn descendants(&self, sctid: u64) -> Vec<u64> {
-        let Some(start) = self.sctid_to_id(sctid) else { return vec![]; };
+        let Some(start) = self.sctid_to_id(sctid) else {
+            return vec![];
+        };
         let csr = self.children_csr();
         self.bfs_collect(start, &csr)
     }
 
     /// True iff `child` is a strict descendant of `ancestor`.
     pub fn is_descendant_of(&self, child: u64, ancestor: u64) -> bool {
-        let Some(child_id) = self.sctid_to_id(child) else { return false; };
-        let Some(anc_id) = self.sctid_to_id(ancestor) else { return false; };
+        let Some(child_id) = self.sctid_to_id(child) else {
+            return false;
+        };
+        let Some(anc_id) = self.sctid_to_id(ancestor) else {
+            return false;
+        };
         let csr = self.parents_csr();
         self.bfs_find(child_id, anc_id, &csr)
     }

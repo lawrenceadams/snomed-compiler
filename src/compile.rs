@@ -20,10 +20,10 @@ pub struct CompileOptions {
 pub fn compile(opts: CompileOptions) -> Result<()> {
     eprintln!("Searching for RF2 files in {:?} ...", opts.rf2_dir);
 
-    let concept_file = find_rf2_file(&opts.rf2_dir, "sct2_Concept_")
-        .context("Locating concept file")?;
-    let rel_file = find_rf2_file(&opts.rf2_dir, "sct2_Relationship_")
-        .context("Locating relationship file")?;
+    let concept_file =
+        find_rf2_file(&opts.rf2_dir, "sct2_Concept_").context("Locating concept file")?;
+    let rel_file =
+        find_rf2_file(&opts.rf2_dir, "sct2_Relationship_").context("Locating relationship file")?;
 
     eprintln!("  concepts:       {}", concept_file.display());
     eprintln!("  relationships:  {}", rel_file.display());
@@ -57,19 +57,34 @@ pub fn compile(opts: CompileOptions) -> Result<()> {
                     flags |= CONCEPT_FLAG_FULLY_DEFINED;
                 }
             }
-            ConceptRecord { sctid, flags, _pad: 0 }
+            ConceptRecord {
+                sctid,
+                flags,
+                _pad: 0,
+            }
         })
         .collect();
 
     let mut sctid_index: Vec<SctidEntry> = id_to_sctid
         .iter()
         .enumerate()
-        .map(|(i, &sctid)| SctidEntry { sctid, internal_id: i as u32, _pad: 0 })
+        .map(|(i, &sctid)| SctidEntry {
+            sctid,
+            internal_id: i as u32,
+            _pad: 0,
+        })
         .collect();
     sctid_index.sort_by_key(|e| e.sctid);
 
     eprintln!("Writing {} ...", opts.output.display());
-    write_artifact(&opts, n as u32, &concept_table, &sctid_index, &parents_csr, &children_csr)?;
+    write_artifact(
+        &opts,
+        n as u32,
+        &concept_table,
+        &sctid_index,
+        &parents_csr,
+        &children_csr,
+    )?;
 
     let path = &opts.output;
     let size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
@@ -106,7 +121,13 @@ fn parse_concepts(path: &Path) -> Result<HashMap<u64, ConceptMeta>> {
         let entry = state.entry(id).or_insert((0, None));
         if et >= entry.0 {
             entry.0 = et;
-            entry.1 = if active == 1 { Some(ConceptMeta { definition_status: def_status }) } else { None };
+            entry.1 = if active == 1 {
+                Some(ConceptMeta {
+                    definition_status: def_status,
+                })
+            } else {
+                None
+            };
         }
     }
 
@@ -144,7 +165,11 @@ fn parse_relationships(path: &Path) -> Result<Vec<(u64, u64)>> {
         let entry = state.entry(id).or_insert((0, None));
         if et >= entry.0 {
             entry.0 = et;
-            entry.1 = if active == 1 { Some((source, dest)) } else { None };
+            entry.1 = if active == 1 {
+                Some((source, dest))
+            } else {
+                None
+            };
         }
     }
 
@@ -288,8 +313,14 @@ fn write_artifact(
 
     let crc_ct = crc32(bytemuck::cast_slice(concept_table));
     let crc_si = crc32(bytemuck::cast_slice(sctid_index));
-    let crc_pc = crc32_pair(bytemuck::cast_slice(&parents_csr.0), bytemuck::cast_slice(&parents_csr.1));
-    let crc_cc = crc32_pair(bytemuck::cast_slice(&children_csr.0), bytemuck::cast_slice(&children_csr.1));
+    let crc_pc = crc32_pair(
+        bytemuck::cast_slice(&parents_csr.0),
+        bytemuck::cast_slice(&parents_csr.1),
+    );
+    let crc_cc = crc32_pair(
+        bytemuck::cast_slice(&children_csr.0),
+        bytemuck::cast_slice(&children_csr.1),
+    );
 
     let header = FileHeader {
         magic: MAGIC,
@@ -302,10 +333,38 @@ fn write_artifact(
     };
 
     let sections = [
-        SectionEntry { section_id: SECTION_CONCEPT_TABLE, _pad0: 0, offset: off1, length: ct_size as u64, checksum: crc_ct, _pad1: 0 },
-        SectionEntry { section_id: SECTION_SCTID_INDEX,   _pad0: 0, offset: off2, length: si_size as u64, checksum: crc_si, _pad1: 0 },
-        SectionEntry { section_id: SECTION_PARENTS_CSR,   _pad0: 0, offset: off3, length: pc_size as u64, checksum: crc_pc, _pad1: 0 },
-        SectionEntry { section_id: SECTION_CHILDREN_CSR,  _pad0: 0, offset: off4, length: cc_size as u64, checksum: crc_cc, _pad1: 0 },
+        SectionEntry {
+            section_id: SECTION_CONCEPT_TABLE,
+            _pad0: 0,
+            offset: off1,
+            length: ct_size as u64,
+            checksum: crc_ct,
+            _pad1: 0,
+        },
+        SectionEntry {
+            section_id: SECTION_SCTID_INDEX,
+            _pad0: 0,
+            offset: off2,
+            length: si_size as u64,
+            checksum: crc_si,
+            _pad1: 0,
+        },
+        SectionEntry {
+            section_id: SECTION_PARENTS_CSR,
+            _pad0: 0,
+            offset: off3,
+            length: pc_size as u64,
+            checksum: crc_pc,
+            _pad1: 0,
+        },
+        SectionEntry {
+            section_id: SECTION_CHILDREN_CSR,
+            _pad0: 0,
+            offset: off4,
+            length: cc_size as u64,
+            checksum: crc_cc,
+            _pad1: 0,
+        },
     ];
 
     let file = File::create(&opts.output)
@@ -374,9 +433,14 @@ fn crc32_pair(a: &[u8], b: &[u8]) -> u32 {
 /// starts with `prefix` and ends with `.txt`.
 fn find_rf2_file(root: &Path, prefix: &str) -> Result<PathBuf> {
     let mut found = None;
-    walk(root, prefix, &mut found)
-        .with_context(|| format!("Searching {}", root.display()))?;
-    found.ok_or_else(|| anyhow!("No RF2 file with prefix {:?} found under {}", prefix, root.display()))
+    walk(root, prefix, &mut found).with_context(|| format!("Searching {}", root.display()))?;
+    found.ok_or_else(|| {
+        anyhow!(
+            "No RF2 file with prefix {:?} found under {}",
+            prefix,
+            root.display()
+        )
+    })
 }
 
 fn walk(dir: &Path, prefix: &str, found: &mut Option<PathBuf>) -> std::io::Result<()> {
